@@ -13,35 +13,32 @@ import (
 )
 
 func main() {
-	// Setup logging
 	logger, logFile, err := setupLogging()
 	if err != nil {
 		log.Fatalf("Failed to setup logging: %v", err)
 	}
+	defer logFile.Sync()
 	defer logFile.Close()
 
-	// Setup panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Panic recovered", "panic", r)
+			logger.Error("Uncaught panic recovered", "panic", r)
 		}
 	}()
 
-	// Create app layer
+	// Create app layer and service layer
 	appLayer := app.NewApp(logger)
-
-	// Create and run service
 	svc := service.NewService(logger, appLayer)
 
-	logger.Info("Starting HATray application")
+	logger.Info("HATray initialized, running service")
 
+	// Main loop
 	if err := svc.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Application error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-// setupLogging initializes structured logging
 func setupLogging() (*slog.Logger, *os.File, error) {
 	// Get the directory where the executable is located
 	exePath, err := os.Executable()
