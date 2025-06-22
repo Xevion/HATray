@@ -1,0 +1,18 @@
+version: '3'
+
+vars:
+  APP_NAME: 'HATray'
+  EXE_NAME: '{{.APP_NAME}}.exe'
+  VERSION: '0.0.1'
+
+tasks:
+  build:
+    cmds:
+      - go build -o ./dist/{{.EXE_NAME}} .
+
+  package:
+    deps: [build]
+    cmds:
+      - wix extension add WixToolset.Util.wixext
+      - wix extension add WixToolset.UI.wixext
+      - wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -o ./dist/{{.APP_NAME}}-{{.VERSION}}.msi build/msi/HATray.wxs -arch x64 -d VERSION={{.VERSION}} -d SOURCE=./dist/{{.EXE_NAME}}

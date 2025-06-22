@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+    xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+    xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+    <Package Language="1033" Manufacturer="Xevion" Name="HATray" Scope="perMachine" UpgradeCode="87d36d2a-cb20-4d4b-87a2-a88c3f60ea44" Version="$(var.VERSION)">
+        <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="A later version of [ProductName] is already installed" AllowSameVersionUpgrades="yes" />
+        <!-- <MediaTemplate EmbedCab="yes" /> -->
+        <!-- <Icon Id="icon.ico" SourceFile="ui\images\icon.ico"/> -->
+        <!-- <Property Id="ARPPRODUCTICON" Value="icon.ico" /> -->
+        <UI Id="UI">
+            <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
+        </UI>
+        <WixVariable Id="WixUILicenseRtf" Value="build/msi/LICENSE.rtf"/>
+
+        <StandardDirectory Id="LocalAppDataFolder">
+            <Directory Id="INSTALLDIR" Name="HATray">
+                <Component Id="serviceComponent">
+                    <File Id="serviceBinary" Source="$(var.SOURCE)" KeyPath="yes" />
+                    <ServiceInstall Id="serviceInstall" Name="HATray" DisplayName="HATray" Description="..." Start="auto" Type="ownProcess" Vital="yes" ErrorControl="normal" Account="LocalSystem">
+                        <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="restart" RestartServiceDelayInSeconds="60" />
+                    </ServiceInstall>
+                    <ServiceControl Id="serviceControl" Name="HATray" Remove="both" Stop="both" Start="install" Wait="yes" />
+                </Component>
+            </Directory>
+        </StandardDirectory>
+        <Feature Id="HATray" Description="HATray" Level="1" ConfigurableDirectory="INSTALLDIR">
+            <ComponentRef Id="serviceComponent" />
+        </Feature>
+        <!-- Meta -->
+        <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+        <Property Id="ARPINSTALLLOCATION" Value="INSTALLDIR" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/Xevion/HATray/issues" />
+        <Property Id="ARPURLINFOABOUT" Value="https://github.com/Xevion/HATray" />
+        <Property Id="ARPURLUPDATEINFO" Value="https://github.com/Xevion/HATray/releases" />
+    </Package>
+</Wix>
