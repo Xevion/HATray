@@ -1,5 +1,16 @@
 # HATray
 
+A simple tray utility for Home Assistant
+
+- Display door, window, motion or other sensor states as icon within your tray.
+- Instantaneous updates via WebSocket connections
+- Configurable via TOML
+- Easy to install, runs as a background service
+- Cross-platform support (Windows, Linux)
+
+### Notes
+
+
 
 ### Feature Targets
 

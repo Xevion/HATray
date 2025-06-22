@@ -2,7 +2,7 @@ version: '3'
 
 includes:
   build:
-    taskfile: Taskfile_{{OS}}.yml
+    taskfile: tasks/Taskfile_{{OS}}.yml
     flatten: true
 
 # Cross-platform or meta tasks only
