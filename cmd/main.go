@@ -2,24 +2,68 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"os"
+	"path/filepath"
 
-	"ha-tray/internal"
+	"ha-tray/internal/app"
+	"ha-tray/internal/service"
 )
 
 func main() {
-	// Create new application instance
-	app := internal.NewApp()
-
-	// Setup the application (logging, panic handling, service initialization)
-	if err := app.Setup(); err != nil {
-		log.Fatalf("Failed to setup application: %v", err)
+	// Setup logging
+	logger, logFile, err := setupLogging()
+	if err != nil {
+		log.Fatalf("Failed to setup logging: %v", err)
 	}
+	defer logFile.Close()
 
-	// Run the application
-	if err := app.Run(); err != nil {
+	// Setup panic recovery
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Panic recovered", "panic", r)
+		}
+	}()
+
+	// Create app layer
+	appLayer := app.NewApp(logger)
+
+	// Create and run service
+	svc := service.NewService(logger, appLayer)
+
+	logger.Info("Starting HATray application")
+
+	if err := svc.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Application error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// setupLogging initializes structured logging
+func setupLogging() (*slog.Logger, *os.File, error) {
+	// Get the directory where the executable is located
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get executable path: %v", err)
+	}
+	exeDir := filepath.Dir(exePath)
+
+	// Open log file in the same directory as the executable
+	logFile, err := os.OpenFile(filepath.Join(exeDir, "current.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open log file: %v", err)
+	}
+
+	// Create multi-writer to log to both file and stdout
+	multiWriter := io.MultiWriter(logFile, os.Stdout)
+
+	// Create JSON handler for structured logging
+	handler := slog.NewJSONHandler(multiWriter, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	logger := slog.New(handler)
+
+	return logger, logFile, nil
 }
