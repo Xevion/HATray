@@ -8,7 +8,7 @@ vars:
 tasks:
   build:
     cmds:
-      - go build -o ./dist/{{.EXE_NAME}} .
+      - go build -o ./dist/{{.EXE_NAME}} ./cmd/main.go
 
   package:
     deps: [build]

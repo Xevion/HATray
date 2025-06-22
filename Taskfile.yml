@@ -36,7 +36,7 @@ tasks:
 
   dev:
     desc: Development workflow - build, test, and run
-    deps: [deps, fmt, vet, test, windows:build]
+    deps: [deps, fmt, vet, test, build]
     cmds:
       - echo "Development workflow complete"
       - echo "Run 'task windows:run' to start the application" 

@@ -1,4 +1,4 @@
-module hass-tray
+module ha-tray
 
 go 1.21
 
