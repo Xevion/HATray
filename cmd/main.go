@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"ha-tray/internal/app"
 	"ha-tray/internal/service"
 )
 
@@ -26,9 +25,8 @@ func main() {
 		}
 	}()
 
-	// Create app layer and service layer
-	appLayer := app.NewApp(logger)
-	svc := service.NewService(logger, appLayer)
+	// Create service layer
+	svc := service.NewService(logger)
 
 	logger.Info("HATray initialized, running service")
 

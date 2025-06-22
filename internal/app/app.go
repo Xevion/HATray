@@ -30,13 +30,13 @@ func NewApp(logger *slog.Logger) *App {
 }
 
 // Pause disconnects from the server and ceases any background tasks
-func (a *App) Pause() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (app *App) Pause() error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
-	a.logger.Info("Pausing application",
+	app.logger.Info("Pausing application",
 		"action", "pause",
-		"previous_state", a.state,
+		"previous_state", app.state,
 		"new_state", StatePaused)
 
 	// TODO: Implement actual pause logic
@@ -44,23 +44,23 @@ func (a *App) Pause() error {
 	// - Stop background tasks
 	// - Pause sensor monitoring
 
-	a.state = StatePaused
+	app.state = StatePaused
 
-	a.logger.Info("Application paused successfully",
+	app.logger.Info("Application paused successfully",
 		"action", "pause",
-		"state", a.state)
+		"state", app.state)
 
 	return nil
 }
 
 // Resume connects to the server and initiates background tasks
-func (a *App) Resume() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (app *App) Resume() error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
-	a.logger.Info("Resuming application",
+	app.logger.Info("Resuming application",
 		"action", "resume",
-		"previous_state", a.state,
+		"previous_state", app.state,
 		"new_state", StateRunning)
 
 	// TODO: Implement actual resume logic
@@ -68,11 +68,11 @@ func (a *App) Resume() error {
 	// - Start background tasks
 	// - Resume sensor monitoring
 
-	a.state = StateRunning
+	app.state = StateRunning
 
-	a.logger.Info("Application resumed successfully",
+	app.logger.Info("Application resumed successfully",
 		"action", "resume",
-		"state", a.state)
+		"state", app.state)
 
 	return nil
 }
@@ -124,13 +124,13 @@ func (a *App) GetState() AppState {
 }
 
 // Stop stops the application completely
-func (a *App) Stop() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (app *App) Stop() error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 
-	a.logger.Info("Stopping application",
+	app.logger.Info("Stopping application",
 		"action", "stop",
-		"previous_state", a.state,
+		"previous_state", app.state,
 		"new_state", StateStopped)
 
 	// TODO: Implement actual stop logic
@@ -138,11 +138,11 @@ func (a *App) Stop() error {
 	// - Clean up resources
 	// - Stop all background tasks
 
-	a.state = StateStopped
+	app.state = StateStopped
 
-	a.logger.Info("Application stopped successfully",
+	app.logger.Info("Application stopped successfully",
 		"action", "stop",
-		"state", a.state)
+		"state", app.state)
 
 	return nil
 }

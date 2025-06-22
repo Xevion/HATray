@@ -9,9 +9,9 @@ import (
 
 	"ha-tray/internal/app"
 
-	"golang.org/x/sys/windows/svc"
-	"golang.org/x/sys/windows/svc/debug"
-	"golang.org/x/sys/windows/svc/eventlog"
+	winsvc "golang.org/x/sys/windows/svc"
+	winsvcDebug "golang.org/x/sys/windows/svc/debug"
+	winsvcEventlog "golang.org/x/sys/windows/svc/eventlog"
 )
 
 const serviceName = "HATray"
@@ -19,131 +19,136 @@ const serviceName = "HATray"
 // WindowsService implements the Service interface for Windows
 type WindowsService struct {
 	logger  *slog.Logger
-	elog    debug.Log
+	elog    winsvcDebug.Log
 	isDebug bool
 	app     *app.App
 }
 
 // newService creates a new Windows service instance
-func newService(logger *slog.Logger, appLayer *app.App) Service {
+func NewService(logger *slog.Logger) Service {
 	return &WindowsService{
 		logger: logger,
-		app:    appLayer,
+		app:    app.NewApp(logger),
 	}
 }
 
 // Run implements the Service interface for Windows
-func (w *WindowsService) Run() error {
+func (svc *WindowsService) Run() error {
 	// Determine if we're running as a Windows service
-	isService, err := svc.IsWindowsService()
+	isService, err := winsvc.IsWindowsService()
 	if err != nil {
 		return fmt.Errorf("failed to determine if running as Windows service: %v", err)
 	}
 
-	w.isDebug = !isService
+	svc.isDebug = !isService
 
 	if isService {
-		return w.runAsService()
+		return svc.runAsService()
 	}
 
 	// Interactive mode
-	return w.runInteractive()
+	return svc.runInteractive()
 }
 
 // runAsService runs the application as a Windows service
-func (w *WindowsService) runAsService() error {
+func (svc *WindowsService) runAsService() error {
 	var err error
-	if w.isDebug {
-		w.elog = debug.New(serviceName)
+	if svc.isDebug {
+		svc.elog = winsvcDebug.New(serviceName)
 	} else {
-		w.elog, err = eventlog.Open(serviceName)
+		svc.elog, err = winsvcEventlog.Open(serviceName)
 		if err != nil {
 			return fmt.Errorf("failed to open event log: %v", err)
 		}
 	}
-	defer w.elog.Close()
+	defer svc.elog.Close()
 
-	w.elog.Info(1, fmt.Sprintf("starting %s service", serviceName))
+	svc.elog.Info(1, fmt.Sprintf("starting %s service", serviceName))
 
-	run := svc.Run
-	if w.isDebug {
-		run = debug.Run
+	run := winsvc.Run
+	if svc.isDebug {
+		run = winsvcDebug.Run
 	}
 
-	err = run(serviceName, &windowsServiceHandler{
-		service: w,
+	err = run(serviceName, &serviceHandler{
+		service: svc,
 	})
 
 	if err != nil {
-		w.elog.Error(1, fmt.Sprintf("%s service failed: %v", serviceName, err))
+		svc.elog.Error(1, fmt.Sprintf("%s service failed: %v", serviceName, err))
 		return err
 	}
 
-	w.elog.Info(1, fmt.Sprintf("%s service stopped", serviceName))
+	svc.elog.Info(1, fmt.Sprintf("%s service stopped", serviceName))
 	return nil
 }
 
 // runInteractive runs the application in interactive mode
-func (w *WindowsService) runInteractive() error {
-	w.logger.Info("Application starting in interactive mode")
+func (svc *WindowsService) runInteractive() error {
+	svc.logger.Info("Application starting in interactive mode")
 
 	// Simple interactive loop
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		w.logger.Debug("Application heartbeat")
+		svc.logger.Debug("Application heartbeat")
 	}
 
 	return nil
 }
 
-// windowsServiceHandler implements the Windows service handler interface
-type windowsServiceHandler struct {
+// serviceHandler implements the Windows service handler interface
+type serviceHandler struct {
 	service *WindowsService
 }
 
-func (h *windowsServiceHandler) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
-	changes <- svc.Status{State: svc.StartPending}
+func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequest, changes chan<- winsvc.Status) (ssec bool, errno uint32) {
+	const cmdsAccepted = winsvc.AcceptStop | winsvc.AcceptShutdown | winsvc.AcceptPauseAndContinue
+	changes <- winsvc.Status{State: winsvc.StartPending}
 
-	h.service.logger.Info("Service starting")
-	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	handler.service.logger.Info("Service starting")
+	changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
 
-	// Main service loop
-	ticker := time.NewTicker(5 * time.Second)
+	// Service heartbeat
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case c := <-r:
 			switch c.Cmd {
-			case svc.Interrogate:
+			case winsvc.Interrogate:
 				changes <- c.CurrentStatus
-			case svc.Stop, svc.Shutdown:
-				h.service.logger.Info("Service stopping")
-				changes <- svc.Status{State: svc.StopPending}
-				if err := h.service.app.Stop(); err != nil {
-					h.service.logger.Error("Failed to stop app layer", "error", err)
+			case winsvc.Stop, winsvc.Shutdown:
+				changes <- winsvc.Status{State: winsvc.StopPending}
+
+				handler.service.logger.Info("Service stopping")
+				if err := handler.service.app.Stop(); err != nil {
+					handler.service.logger.Error("Failed to stop app layer", "error", err)
 				}
 				return
-			case svc.Pause:
-				h.service.logger.Info("Service pausing")
-				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-				if err := h.service.app.Pause(); err != nil {
-					h.service.logger.Error("Failed to pause app layer", "error", err)
+			case winsvc.Pause:
+				changes <- winsvc.Status{State: winsvc.Paused, Accepts: cmdsAccepted}
+
+				handler.service.logger.Info("Service pausing")
+				if err := handler.service.app.Pause(); err != nil {
+					handler.service.logger.Error("Failed to pause app layer", "error", err)
 				}
-			case svc.Continue:
-				h.service.logger.Info("Service continuing")
-				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-				if err := h.service.app.Resume(); err != nil {
-					h.service.logger.Error("Failed to resume app layer", "error", err)
+			case winsvc.Continue:
+				changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
+
+				handler.service.logger.Info("Service continuing")
+				if err := handler.service.app.Resume(); err != nil {
+					handler.service.logger.Error("Failed to resume app layer", "error", err)
 				}
 			default:
-				h.service.elog.Error(uint32(1), fmt.Sprintf("unexpected control request #%d", c))
+				// Log the error to the event log & service logger
+				handler.service.logger.Error("unexpected control request", "request", c)
+				handler.service.elog.Error(uint32(1), fmt.Sprintf("unexpected control request #%d", c))
 			}
 		case <-ticker.C:
-			h.service.logger.Debug("Service heartbeat")
+			handler.service.logger.Debug("heartbeat")
 		}
 	}
 }
