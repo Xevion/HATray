@@ -2,5 +2,5 @@
 *.log
 .env
 .vscode
-dist
+bin
 .wix

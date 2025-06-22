@@ -1,5 +1,9 @@
 version: '3'
 
+vars:
+  APP_NAME: 'HATray'
+  VERSION: '0.0.1'
+
 includes:
   build:
     taskfile: tasks/Taskfile_{{OS}}.yml
