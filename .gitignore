@@ -1,3 +1,6 @@
 *.exe
+*.log
 .env
 .vscode
+dist
+.wix
