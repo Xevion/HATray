@@ -23,16 +23,19 @@ jobs:
 
       - name: Get Version
         id: get_version
-        run: echo "VERSION=$(cat VERSION.txt)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(cat VERSION.txt 2>/dev/null | tr -d '\r\n' | xargs)
+          [ -n "$VERSION" ] || { echo "VERSION could not be acquired" && exit 1 }
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Rename Linux Binary with Version
-        run: mv bin/HATray bin/HATray-linux-amd64-${{ env.VERSION }}
+        run: mv bin/HATray bin/HATray-linux-amd64-${{ steps.get_version.outputs.VERSION }}
 
       - name: Upload Linux Binary
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-linux-amd64-${{ env.VERSION }}
-          path: bin/HATray-linux-amd64-${{ env.VERSION }}
+          name: HATray-linux-amd64-${{ steps.get_version.outputs.VERSION }}
+          path: bin/HATray-linux-amd64-${{ steps.get_version.outputs.VERSION }}
           if-no-files-found: error
 
   build-windows:
@@ -55,18 +58,19 @@ jobs:
         id: get_version_win
         shell: pwsh
         run: |
-            $version = Get-Content VERSION.txt
-            echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+            $version = Get-Content VERSION.txt -ErrorAction SilentlyContinue
+            if ([string]::IsNullOrWhiteSpace($version)) { throw "VERSION could not be acquired" }
+            echo "VERSION=$($version.Trim())" >> $env:GITHUB_OUTPUT
 
       - name: Rename Windows Binary with Version
         shell: pwsh
-        run: Rename-Item -Path bin/HATray.exe -NewName "HATray-windows-amd64-$env:VERSION.exe"
+        run: Rename-Item -Path bin/HATray.exe -NewName "HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.exe"
 
       - name: Upload Windows Binary
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-windows-amd64-${{ env.VERSION }}.exe
-          path: bin/HATray-windows-amd64-${{ env.VERSION }}.exe
+          name: HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.exe
+          path: bin/HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.exe
           if-no-files-found: error
         
       - name: Set up .NET for WiX
@@ -87,11 +91,11 @@ jobs:
 
       - name: Rename MSI with Version
         shell: pwsh
-        run: Rename-Item -Path bin/HATray.msi -NewName "HATray-windows-amd64-$env:VERSION.msi"
+        run: Rename-Item -Path bin/HATray.msi -NewName "HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.msi"
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-windows-amd64-${{ env.VERSION }}.msi
-          path: bin/HATray-windows-amd64-${{ env.VERSION }}.msi
+          name: HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.msi
+          path: bin/HATray-windows-amd64-${{ steps.get_version_win.outputs.VERSION }}.msi
           if-no-files-found: error
