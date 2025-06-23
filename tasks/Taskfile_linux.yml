@@ -21,8 +21,13 @@ tasks:
       - systemctl daemon-reload --user
       # - systemctl enable HATray --user
       - systemctl start HATray --user
-  
+
+  status:
+    desc: "Show the status of the service"
+    cmds:
+      - systemctl status HATray --user
+
   tail:
     desc: "Tail the log file"
     cmds:
-      - sudo journalctl -u HATray -f
+      - journalctl --user-unit HATray.service -ef
