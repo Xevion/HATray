@@ -21,10 +21,14 @@ jobs:
       - name: Build Linux Binary
         run: task build
 
+      - name: Get Version
+        id: get_version
+        run: echo "VERSION=$(cat VERSION.txt)" >> $GITHUB_ENV
+
       - name: Upload Linux Binary
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-linux-amd64
+          name: HATray-linux-amd64-${{ env.VERSION }}
           path: bin/HATray
 
   build-windows:
@@ -59,14 +63,21 @@ jobs:
       - name: Build MSI
         run: task package
 
+      - name: Get Version
+        id: get_version_win
+        shell: pwsh
+        run: |
+          $version = Get-Content VERSION.txt
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Upload Windows Binary
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-windows-amd64.exe
+          name: HATray-windows-amd64-${{ env.VERSION }}.exe
           path: bin/HATray.exe
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: HATray-windows-amd64.msi
-          path: bin/HATray-*.msi 
+          name: HATray-windows-amd64-${{ env.VERSION }}.msi
+          path: bin/HATray.msi

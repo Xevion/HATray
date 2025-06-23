@@ -6,27 +6,27 @@ vars:
 tasks:
   build:
     cmds:
-      - go build -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
+      - go build -ldflags "-X main.Version=$(Get-Content VERSION.txt)" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
 
   service:
     desc: "Install the service"
     deps: [build]
     cmds:
       # Create the service, if not already present
-      - cmd: pwsh -c 'sc create HATray binPath= "$env:USERPROFILE\AppData\Local\HATray\{{.BINARY_NAME}}" start=auto'
+      - cmd: pwsh -c 'sc create HATray binPath= "$env:USERPROFILE\\AppData\\Local\\HATray\\{{.BINARY_NAME}}" start=auto'
         ignore_error: true
       # Stop the service, if running
       - cmd: pwsh -c 'sc stop HATray'
         ignore_error: true
       # Replace the binary
-      - cmd: pwsh -c 'Copy-Item -Force -Path .\bin\{{.BINARY_NAME}} -Destination $env:USERPROFILE\AppData\Local\HATray\{{.BINARY_NAME}}'
+      - cmd: pwsh -c 'Copy-Item -Force -Path .\\bin\\{{.BINARY_NAME}} -Destination $env:USERPROFILE\\AppData\\Local\\HATray\\{{.BINARY_NAME}}'
       # Start the service
       - cmd: pwsh -c 'sc start HATray'
   
   tail:
     desc: "Tail the log file"
     cmds:
-      - cmd: pwsh -c 'Get-Content -Path $env:USERPROFILE\AppData\Local\HATray\current.log -Tail 100 -Wait'
+      - cmd: pwsh -c 'Get-Content -Path $env:USERPROFILE\\AppData\\Local\\HATray\\current.log -Tail 100 -Wait'
   
   package:
     desc: "Package the application as a MSI"
@@ -34,4 +34,4 @@ tasks:
     cmds:
       - wix extension add WixToolset.Util.wixext
       - wix extension add WixToolset.UI.wixext
-      - wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -o ./bin/{{.APP_NAME}}-{{.VERSION}}.msi build/msi/HATray.wxs -arch x64 -d VERSION={{.VERSION}} -d SOURCE=./bin/{{.BINARY_NAME}}
+      - wix build -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -o ./bin/{{.APP_NAME}}.msi build/msi/HATray.wxs -arch x64 -d VERSION=$(Get-Content VERSION.txt) -d SOURCE=./bin/{{.BINARY_NAME}}

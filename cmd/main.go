@@ -11,6 +11,8 @@ import (
 	"ha-tray/internal/service"
 )
 
+var Version = "dev"
+
 func main() {
 	logger, logFile, err := setupLogging()
 	if err != nil {
@@ -18,6 +20,8 @@ func main() {
 	}
 	defer logFile.Sync()
 	defer logFile.Close()
+
+	logger.Info("HATray started", "version", Version)
 
 	defer func() {
 		if r := recover(); r != nil {
