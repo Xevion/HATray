@@ -15,12 +15,24 @@ type App struct {
 }
 
 // AppState represents the current state of the application
-type AppState string
+type AppState int
 
 const (
-	StateRunning AppState = "running"
-	StatePaused  AppState = "paused"
+	StatePaused AppState = iota
+	StateRunning
 )
+
+// String returns the string representation of the AppState
+func (s AppState) String() string {
+	switch s {
+	case StatePaused:
+		return "paused"
+	case StateRunning:
+		return "running"
+	default:
+		return "unknown"
+	}
+}
 
 // NewApp creates a new application instance
 func NewApp(logger *slog.Logger) *App {
