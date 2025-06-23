@@ -38,18 +38,21 @@ func (svc *WindowsService) Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to determine if running as Windows service: %v", err)
 	}
-	svc.logger.Debug("isService", "value", isService)
 
 	var run func(string, winsvc.Handler) error
 
 	// Acquire the appropriate run function & eventlog instance depending on service type
 	if isService {
+		svc.logger.Debug("running as Windows service", "serviceName", serviceName)
+
 		run = winsvc.Run
 		svc.elog, err = eventlog.Open(serviceName)
 		if err != nil {
 			return fmt.Errorf("failed to open event log: %v", err)
 		}
 	} else {
+		svc.logger.Debug("running as debug service", "serviceName", serviceName)
+
 		run = debug.Run
 		svc.elog = debug.New(serviceName)
 	}
@@ -86,14 +89,23 @@ func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequ
 
 	for {
 		select {
+		// handle heartbeat
+		case <-ticker.C:
+			// TODO: in debug mode, I'd like heartbeats to have more interactive, changing information, such as state details, connection status, runtime etc.
+			handler.service.logger.Debug("heartbeat")
+		// handle service control requests
 		case c := <-r:
+			handler.service.logger.Debug("service control request", "request", c)
+
 			switch c.Cmd {
 			case winsvc.Interrogate:
 				changes <- c.CurrentStatus
+				handler.service.logger.Debug("service interrogate", "status", c.CurrentStatus)
 			case winsvc.Stop, winsvc.Shutdown:
 				changes <- winsvc.Status{State: winsvc.StopPending}
 
-				handler.service.logger.Info("service stopping")
+				handler.service.logger.Info("service stopping", "shutdown", c.Cmd == winsvc.Shutdown)
+
 				if err := handler.service.app.Stop(); err != nil {
 					handler.service.logger.Error("Failed to stop app layer", "error", err)
 				}
@@ -117,8 +129,6 @@ func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequ
 				handler.service.logger.Error("unexpected control request", "request", c)
 				handler.service.elog.Error(uint32(1), fmt.Sprintf("unexpected control request #%d", c))
 			}
-		case <-ticker.C:
-			handler.service.logger.Debug("heartbeat")
 		}
 	}
 }
