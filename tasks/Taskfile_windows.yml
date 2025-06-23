@@ -15,6 +15,11 @@ tasks:
     cmds:
       - go build -ldflags "-X main.Version={{.VERSION}} -X main.Commit={{.COMMIT}} -X 'main.BuildDate={{.BUILDDATE}}'" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
 
+  run:
+    desc: "Run the application"
+    cmds:
+      - go run ./cmd/main.go
+
   service:
     desc: "Install the service"
     deps: [build]
