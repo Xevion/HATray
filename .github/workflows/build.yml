@@ -33,6 +33,7 @@ jobs:
         with:
           name: HATray-linux-amd64-${{ env.VERSION }}
           path: bin/HATray-linux-amd64-${{ env.VERSION }}
+          if-no-files-found: error
 
   build-windows:
     runs-on: windows-latest
@@ -79,20 +80,18 @@ jobs:
 
       - name: Rename MSI with Version
         shell: pwsh
-        run: |
-          $msi = Get-ChildItem -Path bin -Filter "HATray-*.msi" | Select-Object -First 1
-          if ($msi) {
-            Rename-Item -Path $msi.FullName -NewName "HATray-windows-amd64-$env:VERSION.msi"
-          }
+        run: Rename-Item -Path bin/HATray.msi -NewName "HATray-windows-amd64-$env:VERSION.msi"
 
       - name: Upload Windows Binary
         uses: actions/upload-artifact@v4
         with:
           name: HATray-windows-amd64-${{ env.VERSION }}.exe
           path: bin/HATray-windows-amd64-${{ env.VERSION }}.exe
+          if-no-files-found: error
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
           name: HATray-windows-amd64-${{ env.VERSION }}.msi
           path: bin/HATray-windows-amd64-${{ env.VERSION }}.msi
+          if-no-files-found: error
