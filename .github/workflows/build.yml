@@ -25,11 +25,14 @@ jobs:
         id: get_version
         run: echo "VERSION=$(cat VERSION.txt)" >> $GITHUB_ENV
 
+      - name: Rename Linux Binary with Version
+        run: mv bin/HATray bin/HATray-linux-amd64-${{ env.VERSION }}
+
       - name: Upload Linux Binary
         uses: actions/upload-artifact@v4
         with:
           name: HATray-linux-amd64-${{ env.VERSION }}
-          path: bin/HATray
+          path: bin/HATray-linux-amd64-${{ env.VERSION }}
 
   build-windows:
     runs-on: windows-latest
@@ -70,14 +73,26 @@ jobs:
           $version = Get-Content VERSION.txt
           echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Rename Windows Binary with Version
+        shell: pwsh
+        run: Rename-Item -Path bin/HATray.exe -NewName "HATray-windows-amd64-$env:VERSION.exe"
+
+      - name: Rename MSI with Version
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path bin -Filter "HATray-*.msi" | Select-Object -First 1
+          if ($msi) {
+            Rename-Item -Path $msi.FullName -NewName "HATray-windows-amd64-$env:VERSION.msi"
+          }
+
       - name: Upload Windows Binary
         uses: actions/upload-artifact@v4
         with:
           name: HATray-windows-amd64-${{ env.VERSION }}.exe
-          path: bin/HATray.exe
+          path: bin/HATray-windows-amd64-${{ env.VERSION }}.exe
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
           name: HATray-windows-amd64-${{ env.VERSION }}.msi
-          path: bin/HATray.msi
+          path: bin/HATray-windows-amd64-${{ env.VERSION }}.msi
