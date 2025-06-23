@@ -80,8 +80,16 @@ func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequ
 	const cmdsAccepted = winsvc.AcceptStop | winsvc.AcceptShutdown | winsvc.AcceptPauseAndContinue
 	changes <- winsvc.Status{State: winsvc.StartPending}
 
-	handler.service.logger.Info("service starting")
+	handler.service.logger.Info("starting service")
 	changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
+
+	// Start the application; backgrounded so that the service can still respond to Windows control requests (the app layer can handle concurrent requests)
+	go func() {
+		// TODO: This has no true error handling, retry mechanism, or timeout mechanism. If this fails, then the service will be stuck in the 'StartPending' state.
+		if err := handler.service.app.Resume(); err != nil {
+			handler.service.logger.Error("failed to start (resume) app layer", "error", err)
+		}
+	}()
 
 	// Service heartbeat
 	ticker := time.NewTicker(30 * time.Second)
@@ -106,8 +114,8 @@ func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequ
 
 				handler.service.logger.Info("service stopping", "shutdown", c.Cmd == winsvc.Shutdown)
 
-				if err := handler.service.app.Stop(); err != nil {
-					handler.service.logger.Error("Failed to stop app layer", "error", err)
+				if err := handler.service.app.Pause(); err != nil {
+					handler.service.logger.Error("failed to pause app layer", "error", err)
 				}
 				return
 			case winsvc.Pause:
@@ -115,14 +123,14 @@ func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequ
 
 				handler.service.logger.Info("service pausing")
 				if err := handler.service.app.Pause(); err != nil {
-					handler.service.logger.Error("Failed to pause app layer", "error", err)
+					handler.service.logger.Error("failed to pause app layer", "error", err)
 				}
 			case winsvc.Continue:
 				changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
 
 				handler.service.logger.Info("service continuing")
 				if err := handler.service.app.Resume(); err != nil {
-					handler.service.logger.Error("Failed to resume app layer", "error", err)
+					handler.service.logger.Error("failed to resume app layer", "error", err)
 				}
 			default:
 				// Log the error to the event log & service logger

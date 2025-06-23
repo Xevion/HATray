@@ -8,9 +8,10 @@ import (
 
 // App represents the main application layer that is generic and cross-platform
 type App struct {
-	logger *slog.Logger
-	mu     sync.RWMutex
-	state  AppState
+	logger     *slog.Logger
+	mu         sync.RWMutex
+	state      AppState
+	hasStarted bool // true only if the application has ever been started (i.e. has been resumed from initial paused state)
 }
 
 // AppState represents the current state of the application
@@ -19,48 +20,15 @@ type AppState string
 const (
 	StateRunning AppState = "running"
 	StatePaused  AppState = "paused"
-	StateStopped AppState = "stopped"
 )
 
 // NewApp creates a new application instance
 func NewApp(logger *slog.Logger) *App {
 	return &App{
-		logger: logger,
-		state:  StateStopped,
+		logger:     logger,
+		state:      StatePaused,
+		hasStarted: false,
 	}
-}
-
-// Start transitions the application from Stopped or Paused to Running
-func (app *App) Start() error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	switch app.state {
-	case StateRunning:
-		return fmt.Errorf("application is already running")
-	case StateStopped, StatePaused:
-		// valid states to start from, do nothing
-	default:
-		return fmt.Errorf("cannot start application from state: %s", app.state)
-	}
-
-	app.logger.Info("starting application",
-		"action", "start",
-		"previous_state", app.state,
-		"new_state", StateRunning)
-
-	// TODO: Implement actual start logic
-	// - Connect to Home Assistant WebSocket
-	// - Start background tasks
-	// - Start sensor monitoring
-
-	app.state = StateRunning
-
-	app.logger.Info("started successfully",
-		"action", "start",
-		"state", app.state)
-
-	return nil
 }
 
 // Pause disconnects from the server and ceases any background tasks
@@ -71,8 +39,10 @@ func (app *App) Pause() error {
 	switch app.state {
 	case StatePaused:
 		return fmt.Errorf("application is already paused")
-	case StateStopped:
-		return fmt.Errorf("cannot pause application when stopped")
+	case StateRunning:
+		// valid state to pause from, do nothing
+	default:
+		return fmt.Errorf("unexpected state encountered while pausing application: %s", app.state)
 	}
 
 	app.logger.Info("pausing application",
@@ -102,18 +72,18 @@ func (app *App) Resume() error {
 	switch app.state {
 	case StateRunning:
 		return fmt.Errorf("application is already running")
-	case StateStopped:
-		return fmt.Errorf("cannot resume application when stopped, instead, start the application")
 	case StatePaused:
 		// valid state to resume from, do nothing
 	default:
-		return fmt.Errorf("cannot resume application from state: %s", app.state)
+		return fmt.Errorf("unexpected state encountered while resuming application: %s", app.state)
 	}
 
 	app.logger.Info("resuming application",
 		"action", "resume",
 		"previous_state", app.state,
-		"new_state", StateRunning)
+		"new_state", StateRunning,
+		"has_started", app.hasStarted,
+	)
 
 	// TODO: Implement actual resume logic
 	// - Connect to Home Assistant WebSocket
@@ -121,6 +91,7 @@ func (app *App) Resume() error {
 	// - Resume sensor monitoring
 
 	app.state = StateRunning
+	app.hasStarted = true
 
 	app.logger.Info("resumed successfully",
 		"action", "resume",
@@ -135,14 +106,12 @@ func (a *App) Reload() error {
 	defer a.mu.Unlock()
 
 	switch a.state {
-	case StateStopped:
-		return fmt.Errorf("cannot reload application when stopped")
 	case StatePaused:
 		return fmt.Errorf("cannot reload application when paused")
 	case StateRunning:
 		// valid state to reload from, do nothing
 	default:
-		return fmt.Errorf("cannot reload application from state: %s", a.state)
+		return fmt.Errorf("unexpected state encountered while reloading application: %s", a.state)
 	}
 
 	a.logger.Info("starting application reload",
@@ -192,37 +161,4 @@ func (a *App) GetState() AppState {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.state
-}
-
-// Stop stops the application completely
-func (app *App) Stop() error {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-
-	switch app.state {
-	case StateStopped:
-		return fmt.Errorf("application is already stopped")
-	case StatePaused, StateRunning:
-		// valid state to stop from, do nothing
-	default:
-		return fmt.Errorf("unexpected state encountered while stopping application: %s", app.state)
-	}
-
-	app.logger.Info("stopping application",
-		"action", "stop",
-		"previous_state", app.state,
-		"new_state", StateStopped)
-
-	// TODO: Implement actual stop logic
-	// - Disconnect from all services
-	// - Clean up resources
-	// - Stop all background tasks
-
-	app.state = StateStopped
-
-	app.logger.Info("application stopped successfully",
-		"action", "stop",
-		"state", app.state)
-
-	return nil
 }
