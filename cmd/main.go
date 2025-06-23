@@ -14,25 +14,25 @@ import (
 func main() {
 	logger, logFile, err := setupLogging()
 	if err != nil {
-		log.Fatalf("Failed to setup logging: %v", err)
+		log.Fatalf("failed to setup logging: %v", err)
 	}
 	defer logFile.Sync()
 	defer logFile.Close()
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Uncaught panic recovered", "panic", r)
+			logger.Error("uncaught panic recovered", "panic", r)
 		}
 	}()
 
 	// Create service layer
 	svc := service.NewService(logger)
 
-	logger.Info("HATray initialized, running service")
+	logger.Info("service initialized")
 
 	// Main loop
 	if err := svc.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Application error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "application error: %v\n", err)
 		os.Exit(1)
 	}
 }

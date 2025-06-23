@@ -34,7 +34,7 @@ func (app *App) Pause() error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	app.logger.Info("Pausing application",
+	app.logger.Info("pausing application",
 		"action", "pause",
 		"previous_state", app.state,
 		"new_state", StatePaused)
@@ -46,7 +46,7 @@ func (app *App) Pause() error {
 
 	app.state = StatePaused
 
-	app.logger.Info("Application paused successfully",
+	app.logger.Info("paused successfully",
 		"action", "pause",
 		"state", app.state)
 
@@ -58,7 +58,7 @@ func (app *App) Resume() error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	app.logger.Info("Resuming application",
+	app.logger.Info("resuming application",
 		"action", "resume",
 		"previous_state", app.state,
 		"new_state", StateRunning)
@@ -70,7 +70,7 @@ func (app *App) Resume() error {
 
 	app.state = StateRunning
 
-	app.logger.Info("Application resumed successfully",
+	app.logger.Info("resumed successfully",
 		"action", "resume",
 		"state", app.state)
 
@@ -79,14 +79,14 @@ func (app *App) Resume() error {
 
 // Reload pauses the application, re-reads configuration files, then resumes
 func (a *App) Reload() error {
-	a.logger.Info("Starting application reload",
+	a.logger.Info("starting application reload",
 		"action", "reload",
 		"current_state", a.state)
 
 	// Pause if not already paused
 	if a.state != StatePaused {
 		if err := a.Pause(); err != nil {
-			a.logger.Error("Failed to pause during reload",
+			a.logger.Error("failed to pause during reload",
 				"action", "reload",
 				"error", err)
 			return err
@@ -98,18 +98,18 @@ func (a *App) Reload() error {
 	// - Validate configuration
 	// - Update internal state with new configuration
 
-	a.logger.Info("Configuration reloaded successfully",
+	a.logger.Info("configuration reloaded successfully",
 		"action", "reload")
 
 	// Resume the application
 	if err := a.Resume(); err != nil {
-		a.logger.Error("Failed to resume after reload",
+		a.logger.Error("failed to resume after reload",
 			"action", "reload",
 			"error", err)
 		return err
 	}
 
-	a.logger.Info("Application reload completed successfully",
+	a.logger.Info("application reload completed successfully",
 		"action", "reload",
 		"final_state", a.state)
 
@@ -128,7 +128,7 @@ func (app *App) Stop() error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
-	app.logger.Info("Stopping application",
+	app.logger.Info("stopping application",
 		"action", "stop",
 		"previous_state", app.state,
 		"new_state", StateStopped)
@@ -140,7 +140,7 @@ func (app *App) Stop() error {
 
 	app.state = StateStopped
 
-	app.logger.Info("Application stopped successfully",
+	app.logger.Info("application stopped successfully",
 		"action", "stop",
 		"state", app.state)
 

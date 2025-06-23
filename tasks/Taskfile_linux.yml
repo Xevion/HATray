@@ -1,0 +1,28 @@
+version: '3'
+
+vars:
+  BINARY_NAME: '{{.APP_NAME}}'
+
+tasks:
+  build:
+    cmds:
+      - go build -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
+
+  service:
+    desc: "Install the service"
+    deps: [build]
+    cmds:
+      - mkdir -p $HOME/.config/systemd/user
+      - cmd: systemctl stop HATray --user
+        ignore_error: true
+      - cp ./bin/{{.BINARY_NAME}} $HOME/.local/bin/{{.BINARY_NAME}}
+      # super hacky way of fixing MAINPID being replaced
+      - BINARY_PATH="$HOME/.local/bin/{{.BINARY_NAME}}" MAINPID='$MAINPID' envsubst < ./build/unix/HATray.service > $HOME/.config/systemd/user/HATray.service
+      - systemctl daemon-reload --user
+      # - systemctl enable HATray --user
+      - systemctl start HATray --user
+  
+  tail:
+    desc: "Tail the log file"
+    cmds:
+      - sudo journalctl -u HATray -f
