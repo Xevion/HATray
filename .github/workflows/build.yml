@@ -25,7 +25,7 @@ jobs:
         id: get_version
         run: |
           VERSION=$(cat VERSION.txt 2>/dev/null | tr -d '\r\n' | xargs)
-          [ -n "$VERSION" ] || { echo "VERSION could not be acquired" && exit 1 }
+          [ -n "$VERSION" ] || { echo "VERSION could not be acquired" && exit 1; }
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Rename Linux Binary with Version
