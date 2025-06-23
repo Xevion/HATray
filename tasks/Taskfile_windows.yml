@@ -35,10 +35,15 @@ tasks:
       # Start the service
       - cmd: pwsh -c 'sc start HATray'
   
+  status:
+    desc: "Show the status of the service"
+    cmds:
+      - cmd: sc query HATray
+
   tail:
     desc: "Tail the log file"
     cmds:
-      - cmd: pwsh -c 'Get-Content -Path $env:USERPROFILE\\AppData\\Local\\HATray\\current.log -Tail 100 -Wait'
+      - cmd: pwsh -c 'Get-Content -Path $env:LOCALAPPDATA\\HATray\\current.log -Tail 10 -Wait'
   
   package:
     desc: "Package the application as a MSI"
