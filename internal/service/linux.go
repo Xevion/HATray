@@ -55,7 +55,7 @@ func (s *linuxService) Run() error {
 	}()
 
 	// Setup heartbeat to systemd
-	heartbeat := time.NewTicker(2 * time.Second)
+	heartbeat := time.NewTicker(30 * time.Second)
 	defer heartbeat.Stop()
 
 	// Start the service (backgrounded so that the service can still respond to systemd signals, the app layer is still designed for concurrency)
