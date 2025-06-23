@@ -48,6 +48,27 @@ jobs:
       - name: Install Task
         uses: arduino/setup-task@v2
 
+      - name: Build Windows Binary
+        run: task build
+
+      - name: Get Version
+        id: get_version_win
+        shell: pwsh
+        run: |
+            $version = Get-Content VERSION.txt
+            echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Rename Windows Binary with Version
+        shell: pwsh
+        run: Rename-Item -Path bin/HATray.exe -NewName "HATray-windows-amd64-$env:VERSION.exe"
+
+      - name: Upload Windows Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: HATray-windows-amd64-${{ env.VERSION }}.exe
+          path: bin/HATray-windows-amd64-${{ env.VERSION }}.exe
+          if-no-files-found: error
+        
       - name: Set up .NET for WiX
         uses: actions/setup-dotnet@v4
         with:
@@ -61,33 +82,12 @@ jobs:
           wix extension add WixToolset.Util.wixext
           wix extension add WixToolset.UI.wixext
 
-      - name: Build Windows Binary
-        run: task build
-
       - name: Build MSI
         run: task package
-
-      - name: Get Version
-        id: get_version_win
-        shell: pwsh
-        run: |
-          $version = Get-Content VERSION.txt
-          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Rename Windows Binary with Version
-        shell: pwsh
-        run: Rename-Item -Path bin/HATray.exe -NewName "HATray-windows-amd64-$env:VERSION.exe"
 
       - name: Rename MSI with Version
         shell: pwsh
         run: Rename-Item -Path bin/HATray.msi -NewName "HATray-windows-amd64-$env:VERSION.msi"
-
-      - name: Upload Windows Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: HATray-windows-amd64-${{ env.VERSION }}.exe
-          path: bin/HATray-windows-amd64-${{ env.VERSION }}.exe
-          if-no-files-found: error
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
