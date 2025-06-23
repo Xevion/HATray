@@ -9,6 +9,7 @@ Type=notify
 NotifyAccess=main
 ExecStart=$BINARY_PATH
 ExecReload=/bin/kill -HUP $MAINPID
+WatchdogSec=10
 
 Restart=on-failure
 RestartSec=5
