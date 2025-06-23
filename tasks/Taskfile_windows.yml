@@ -6,7 +6,7 @@ vars:
 tasks:
   build:
     cmds:
-      - go build -ldflags "-X main.Version=$(Get-Content VERSION.txt)" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
+      - go build -ldflags "-X main.Version=$(Get-Content VERSION.txt) -X main.Commit=$(git rev-parse --short HEAD) -X 'main.BuildDate=$(Get-Date -Format yyyy-MM-ddTHH:mm:ssZ)'" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
 
   service:
     desc: "Install the service"

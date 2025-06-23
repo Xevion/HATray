@@ -11,7 +11,11 @@ import (
 	"ha-tray/internal/service"
 )
 
-var Version = "dev"
+var (
+	Version   = "dev"
+	Commit    = ""
+	BuildDate = ""
+)
 
 func main() {
 	logger, logFile, err := setupLogging()
@@ -21,7 +25,7 @@ func main() {
 	defer logFile.Sync()
 	defer logFile.Close()
 
-	logger.Info("HATray started", "version", Version)
+	logger.Info("HATray started", "version", Version, "commit", Commit, "built", BuildDate)
 
 	defer func() {
 		if r := recover(); r != nil {
