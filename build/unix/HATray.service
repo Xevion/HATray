@@ -1,5 +1,5 @@
 [Unit]
-Description=HATray - Home Assistant Tray Utility
+Description=HATray - A tray utility for Home Assistant
 Documentation=https://github.com/Xevion/HATray
 After=network-online.target
 Wants=network-online.target

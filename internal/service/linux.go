@@ -15,8 +15,6 @@ import (
 	"github.com/coreos/go-systemd/daemon"
 )
 
-const serviceName = "HATray"
-
 // linuxService implements the Service interface for Linux
 // It integrates with systemd and controls the app layer
 // according to systemd signals (start, stop, reload)

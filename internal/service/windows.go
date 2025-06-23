@@ -14,8 +14,6 @@ import (
 	"golang.org/x/sys/windows/svc/eventlog"
 )
 
-const serviceName = "HATray"
-
 // WindowsService implements the Service interface for Windows
 type WindowsService struct {
 	app    *app.App
@@ -43,29 +41,29 @@ func (svc *WindowsService) Run() error {
 
 	// Acquire the appropriate run function & eventlog instance depending on service type
 	if isService {
-		svc.logger.Debug("running as Windows service", "serviceName", serviceName)
+		svc.logger.Debug("running as Windows service")
 
 		run = winsvc.Run
-		svc.elog, err = eventlog.Open(serviceName)
+		svc.elog, err = eventlog.Open("HATray")
 		if err != nil {
 			return fmt.Errorf("failed to open event log: %v", err)
 		}
 	} else {
-		svc.logger.Debug("running as debug service", "serviceName", serviceName)
+		svc.logger.Debug("running as debug service")
 
 		run = debug.Run
-		svc.elog = debug.New(serviceName)
+		svc.elog = debug.New("HATray")
 	}
 
 	defer svc.elog.Close()
 
-	svc.elog.Info(1, fmt.Sprintf("starting %s service", serviceName))
+	svc.elog.Info(1, "starting service")
 	// Run the service with our handler
-	err = run(serviceName, &serviceHandler{
+	err = run("HATray", &serviceHandler{
 		service: svc,
 	})
 	if err != nil {
-		svc.elog.Error(1, fmt.Sprintf("%s service failed: %v", serviceName, err))
+		svc.elog.Error(1, fmt.Sprintf("service failed: %v", err))
 		return err
 	}
 
