@@ -7,6 +7,9 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +44,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
@@ -69,13 +75,13 @@ jobs:
 
       - name: Rename Windows Binary with Version
         shell: pwsh
-        run: Rename-Item -Path bin/HATray.exe -NewName ${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
+        run: Rename-Item -Path bin/HATray.exe -NewName "${{ steps.get_version_win.outputs.BINARY_NAME }}.exe"
 
       - name: Upload Windows Binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
-          path: ${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
+          path: bin/${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
           if-no-files-found: error
         
       - name: Set up .NET for WiX
@@ -96,11 +102,11 @@ jobs:
 
       - name: Rename MSI with Version
         shell: pwsh
-        run: Rename-Item -Path bin/HATray.msi -NewName ${{ steps.get_version_win.outputs.BINARY_NAME }}.msi
+        run: Rename-Item -Path bin/HATray.msi -NewName "${{ steps.get_version_win.outputs.BINARY_NAME }}.msi"
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.get_version_win.outputs.BINARY_NAME }}.msi
-          path: ${{ steps.get_version_win.outputs.BINARY_NAME }}.msi
+          path: bin/${{ steps.get_version_win.outputs.BINARY_NAME }}.msi
           if-no-files-found: error
