@@ -18,25 +18,28 @@ var (
 )
 
 func main() {
-	logger, logFile, err := setupLogging()
+	rootLogger, logFile, err := setupLogging()
 	if err != nil {
 		log.Fatalf("failed to setup logging: %v", err)
 	}
 	defer logFile.Sync()
 	defer logFile.Close()
 
-	logger.Info("HATray started", "version", Version, "commit", Commit, "built", BuildDate)
+	mainLogger := rootLogger.With("type", "main")
+	slog.SetDefault(rootLogger.With("type", "global"))
+
+	mainLogger.Info("HATray started", "version", Version, "commit", Commit, "built", BuildDate)
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("uncaught panic recovered", "panic", r)
+			mainLogger.Error("uncaught panic recovered", "panic", r)
 		}
 	}()
 
 	// Create service layer
-	svc := service.NewService(logger)
+	svc := service.NewService(mainLogger)
 
-	logger.Info("service initialized")
+	mainLogger.Info("service initialized")
 
 	// Main loop
 	if err := svc.Run(); err != nil {

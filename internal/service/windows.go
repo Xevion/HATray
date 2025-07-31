@@ -25,7 +25,7 @@ type WindowsService struct {
 func NewService(logger *slog.Logger) Service {
 	return &WindowsService{
 		logger: logger,
-		app:    app.NewApp(logger),
+		app:    app.NewApp(logger.With("service", "windows")),
 	}
 }
 

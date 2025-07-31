@@ -26,7 +26,7 @@ type linuxService struct {
 // NewService creates a new Linux service instance
 func NewService(logger *slog.Logger) Service {
 	return &linuxService{
-		logger: logger,
+		logger: logger.With("type", "service", "variant", "linux"),
 		app:    app.NewApp(logger),
 	}
 }
