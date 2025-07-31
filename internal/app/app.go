@@ -2,16 +2,23 @@ package app
 
 import (
 	"fmt"
+	"ha-tray/internal"
 	"log/slog"
 	"sync"
+	"time"
+
+	ga "github.com/Xevion/gome-assistant"
 )
 
 // App represents the main application layer that is generic and cross-platform
 type App struct {
-	logger     *slog.Logger
-	mu         sync.RWMutex
-	state      AppState
-	hasStarted bool // true only if the application has ever been started (i.e. has been resumed from initial paused state)
+	logger      *slog.Logger
+	mu          sync.RWMutex
+	state       AppState
+	config      *Config
+	lastStarted *time.Time // time of last start, nil if never started
+	tray        *Tray      // simple interface to systray
+	ha          *ga.App
 }
 
 // AppState represents the current state of the application
@@ -37,9 +44,12 @@ func (s AppState) String() string {
 // NewApp creates a new application instance
 func NewApp(logger *slog.Logger) *App {
 	return &App{
-		logger:     logger,
-		state:      StatePaused,
-		hasStarted: false,
+		logger:      logger.With("type", "app"),
+		state:       StatePaused,
+		config:      nil,
+		lastStarted: nil,
+		tray:        &Tray{},
+		ha:          nil,
 	}
 }
 
@@ -66,6 +76,18 @@ func (app *App) Pause() error {
 	// - Disconnect from Home Assistant WebSocket
 	// - Stop background tasks
 	// - Pause sensor monitoring
+	// - Stop tray icon event loop
+
+	err := app.ha.Close()
+	if err != nil {
+		app.logger.Error("failed to close home assistant connection", "error", err)
+		return err
+	}
+	err = app.tray.Stop()
+	if err != nil {
+		app.logger.Error("failed to stop tray", "error", err)
+		return err
+	}
 
 	app.state = StatePaused
 
@@ -94,16 +116,37 @@ func (app *App) Resume() error {
 		"action", "resume",
 		"previous_state", app.state,
 		"new_state", StateRunning,
-		"has_started", app.hasStarted,
+		"has_started", app.lastStarted,
 	)
 
 	// TODO: Implement actual resume logic
 	// - Connect to Home Assistant WebSocket
 	// - Start background tasks
 	// - Resume sensor monitoring
+	err := app.tray.Start(fmt.Sprintf("HATray v%s", "0.0.1"))
+	if err != nil {
+		app.logger.Error("failed to start tray", "error", err)
+		return err
+	}
+
+	app.config = DefaultConfig()
+
+	app.ha, err = ga.NewApp(ga.NewAppRequest{
+		URL:         app.config.Server,
+		HAAuthToken: app.config.APIKey,
+	})
+
+	if err != nil {
+		app.logger.Error("failed to create Home Assistant app", "error", err)
+		return err
+	}
+
+	app.ha.Cleanup()
+
+	app.tray.SetIcon(IconUnknown)
 
 	app.state = StateRunning
-	app.hasStarted = true
+	app.lastStarted = internal.Ptr(time.Now())
 
 	app.logger.Info("resumed successfully",
 		"action", "resume",
@@ -134,6 +177,7 @@ func (a *App) Reload() error {
 	switch a.state {
 	case StatePaused:
 		// already paused, do nothing
+		a.logger.Info("application is already paused during reload")
 	case StateRunning:
 		if err := a.Pause(); err != nil {
 			a.logger.Error("failed to pause during reload",
