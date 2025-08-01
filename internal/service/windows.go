@@ -5,136 +5,183 @@ package service
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"ha-tray/internal/app"
 
-	winsvc "golang.org/x/sys/windows/svc"
-	"golang.org/x/sys/windows/svc/debug"
-	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/registry"
 )
 
-// WindowsService implements the Service interface for Windows
-type WindowsService struct {
-	app    *app.App
-	logger *slog.Logger // logger instance, logs to file (and console in debug mode)
-	elog   debug.Log    // event log instance; connects to the Windows Event Log
+// WindowsTrayService implements the Service interface for Windows as a user application
+type WindowsTrayService struct {
+	app          *app.App
+	logger       *slog.Logger
+	restartCount int
+	maxRestarts  int
+	restartDelay time.Duration
+	quitChan     chan struct{}
+	restartChan  chan struct{}
 }
 
-// newService creates a new Windows service instance
+// NewService creates a new Windows tray service instance
 func NewService(logger *slog.Logger) Service {
-	return &WindowsService{
-		logger: logger,
-		app:    app.NewApp(logger.With("service", "windows")),
+	return &WindowsTrayService{
+		logger:       logger.With("type", "service", "variant", "windows"),
+		app:          app.NewApp(logger),
+		maxRestarts:  3,
+		restartDelay: 5 * time.Second,
+		quitChan:     make(chan struct{}),
+		restartChan:  make(chan struct{}),
 	}
 }
 
 // Run implements the Service interface for Windows
-func (svc *WindowsService) Run() error {
-	// Determine if we're running as a Windows service
-	isService, err := winsvc.IsWindowsService()
-	if err != nil {
-		return fmt.Errorf("failed to determine if running as Windows service: %v", err)
+func (svc *WindowsTrayService) Run() error {
+	svc.logger.Info("starting Windows tray service")
+
+	// Setup auto-start if not already configured
+	if err := svc.setupAutoStart(); err != nil {
+		svc.logger.Warn("failed to setup auto-start", "error", err)
 	}
 
-	var run func(string, winsvc.Handler) error
+	// Setup signal handling
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
-	// Acquire the appropriate run function & eventlog instance depending on service type
-	if isService {
-		svc.logger.Debug("running as Windows service")
+	// Setup power management (sleep/wake)
+	svc.setupPowerManagement()
 
-		run = winsvc.Run
-		svc.elog, err = eventlog.Open("HATray")
-		if err != nil {
-			return fmt.Errorf("failed to open event log: %v", err)
+	// Main service loop with restart capability
+	for {
+		select {
+		case <-svc.quitChan:
+			svc.logger.Info("service shutdown requested")
+			return nil
+		default:
+			if err := svc.runServiceLoop(sigs); err != nil {
+				svc.logger.Error("service loop failed", "error", err)
+
+				if svc.restartCount < svc.maxRestarts {
+					svc.restartCount++
+					svc.logger.Info("restarting service", "attempt", svc.restartCount, "max", svc.maxRestarts)
+					time.Sleep(svc.restartDelay)
+					continue
+				} else {
+					svc.logger.Error("max restarts exceeded, shutting down")
+					return err
+				}
+			}
 		}
-	} else {
-		svc.logger.Debug("running as debug service")
-
-		run = debug.Run
-		svc.elog = debug.New("HATray")
 	}
-
-	defer svc.elog.Close()
-
-	svc.elog.Info(1, "starting service")
-	// Run the service with our handler
-	err = run("HATray", &serviceHandler{
-		service: svc,
-	})
-	if err != nil {
-		svc.elog.Error(1, fmt.Sprintf("service failed: %v", err))
-		return err
-	}
-
-	return nil
 }
 
-type serviceHandler struct {
-	service *WindowsService
-}
-
-func (handler *serviceHandler) Execute(args []string, r <-chan winsvc.ChangeRequest, changes chan<- winsvc.Status) (ssec bool, errno uint32) {
-	const cmdsAccepted = winsvc.AcceptStop | winsvc.AcceptShutdown | winsvc.AcceptPauseAndContinue
-	changes <- winsvc.Status{State: winsvc.StartPending}
-
-	handler.service.logger.Info("starting service")
-	changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
-
-	// Start the application; backgrounded so that the service can still respond to Windows control requests (the app layer can handle concurrent requests)
+// runServiceLoop runs the main service loop
+func (svc *WindowsTrayService) runServiceLoop(sigs chan os.Signal) error {
+	// Start the application in background
 	go func() {
-		// TODO: This has no true error handling, retry mechanism, or timeout mechanism. If this fails, then the service will be stuck in the 'StartPending' state.
-		if err := handler.service.app.Resume(); err != nil {
-			handler.service.logger.Error("failed to start (resume) app layer", "error", err)
+		if err := svc.app.Resume(); err != nil {
+			svc.logger.Error("failed to start app layer", "error", err)
 		}
 	}()
 
 	// Service heartbeat
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+	heartbeat := time.NewTicker(30 * time.Second)
+	defer heartbeat.Stop()
+
+	// Watchdog for app health
+	watchdog := time.NewTicker(60 * time.Second)
+	defer watchdog.Stop()
 
 	for {
 		select {
-		// handle heartbeat
-		case <-ticker.C:
-			// TODO: in debug mode, I'd like heartbeats to have more interactive, changing information, such as state details, connection status, runtime etc.
-			handler.service.logger.Debug("heartbeat")
-		// handle service control requests
-		case c := <-r:
-			handler.service.logger.Debug("service control request", "request", c)
-
-			switch c.Cmd {
-			case winsvc.Interrogate:
-				changes <- c.CurrentStatus
-				handler.service.logger.Debug("service interrogate", "status", c.CurrentStatus)
-			case winsvc.Stop, winsvc.Shutdown:
-				changes <- winsvc.Status{State: winsvc.StopPending}
-
-				handler.service.logger.Info("service stopping", "shutdown", c.Cmd == winsvc.Shutdown)
-
-				if err := handler.service.app.Pause(); err != nil {
-					handler.service.logger.Error("failed to pause app layer", "error", err)
-				}
-				return
-			case winsvc.Pause:
-				changes <- winsvc.Status{State: winsvc.Paused, Accepts: cmdsAccepted}
-
-				handler.service.logger.Info("service pausing")
-				if err := handler.service.app.Pause(); err != nil {
-					handler.service.logger.Error("failed to pause app layer", "error", err)
-				}
-			case winsvc.Continue:
-				changes <- winsvc.Status{State: winsvc.Running, Accepts: cmdsAccepted}
-
-				handler.service.logger.Info("service continuing")
-				if err := handler.service.app.Resume(); err != nil {
-					handler.service.logger.Error("failed to resume app layer", "error", err)
-				}
-			default:
-				// Log the error to the event log & service logger
-				handler.service.logger.Error("unexpected control request", "request", c)
-				handler.service.elog.Error(uint32(1), fmt.Sprintf("unexpected control request #%d", c))
+		case <-svc.quitChan:
+			svc.logger.Info("shutting down service")
+			if err := svc.app.Pause(); err != nil {
+				svc.logger.Error("failed to pause app layer", "error", err)
 			}
+			return nil
+
+		case <-svc.restartChan:
+			svc.logger.Info("restarting service")
+			if err := svc.app.Reload(); err != nil {
+				svc.logger.Error("failed to reload app layer", "error", err)
+			}
+
+		case <-heartbeat.C:
+			svc.logger.Debug("service heartbeat", "uptime", time.Since(time.Now()))
+
+		case <-watchdog.C:
+			// Check if app is healthy
+			if !svc.isAppHealthy() {
+				svc.logger.Warn("app health check failed, triggering restart")
+				svc.restartChan <- struct{}{}
+			}
+
+		case sig := <-sigs:
+			svc.logger.Info("signal received", "signal", sig)
+			close(svc.quitChan)
 		}
 	}
+}
+
+// setupAutoStart configures the application to start automatically on login
+func (svc *WindowsTrayService) setupAutoStart() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %v", err)
+	}
+
+	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("failed to open registry key: %v", err)
+	}
+	defer key.Close()
+
+	// Use quotes around path to handle spaces
+	exePath = fmt.Sprintf(`"%s"`, exePath)
+
+	if err := key.SetStringValue("HATray", exePath); err != nil {
+		return fmt.Errorf("failed to set registry value: %v", err)
+	}
+
+	svc.logger.Info("auto-start configured", "path", exePath)
+	return nil
+}
+
+// removeAutoStart removes the auto-start configuration
+func (svc *WindowsTrayService) removeAutoStart() error {
+	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("failed to open registry key: %v", err)
+	}
+	defer key.Close()
+
+	if err := key.DeleteValue("HATray"); err != nil {
+		return fmt.Errorf("failed to delete registry value: %v", err)
+	}
+
+	svc.logger.Info("auto-start removed")
+	return nil
+}
+
+// setupPowerManagement handles sleep/wake events
+func (svc *WindowsTrayService) setupPowerManagement() {
+	// TODO: Implement Windows power management
+	// - Listen for WM_POWERBROADCAST messages
+	// - Handle system sleep/wake events
+	// - Pause/resume app accordingly
+	svc.logger.Debug("power management setup (not implemented)")
+}
+
+// isAppHealthy checks if the application is running properly
+func (svc *WindowsTrayService) isAppHealthy() bool {
+	// TODO: Implement health checks
+	// - Check if Home Assistant connection is alive
+	// - Check if systray is responsive
+	// - Check memory usage
+	// - Check for any error conditions
+	return true
 }
