@@ -1,12 +1,12 @@
-version: '3'
+version: "3"
 
 vars:
-  BINARY_NAME: '{{.APP_NAME}}'
+  BINARY_NAME: "{{.APP_NAME}}"
 
 tasks:
   build:
     cmds:
-      - go build -ldflags "-X main.Version=$(cat VERSION.txt) -X main.Commit=$(git rev-parse --short HEAD) -X 'main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
+      - go build -ldflags "-X main.Version=$(git describe --tags --abbrev=0 2>/dev/null || echo 'unknown') -X main.Commit=$(git rev-parse --short HEAD) -X 'main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ./bin/{{.BINARY_NAME}} ./cmd/main.go
 
   service:
     desc: "Install the service"

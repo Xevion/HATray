@@ -1,9 +1,9 @@
-version: '3'
+version: "3"
 
 vars:
-  BINARY_NAME: '{{.APP_NAME}}.exe'
+  BINARY_NAME: "{{.APP_NAME}}.exe"
   VERSION:
-    sh: powershell -Command "Get-Content VERSION.txt"
+    sh: powershell -Command "try { agit describe --tags --abbrev=0 } catch { 'unknown' }"
   COMMIT:
     sh: git rev-parse --short HEAD
 
@@ -34,7 +34,7 @@ tasks:
       - cmd: pwsh -c 'Copy-Item -Force -Path .\\bin\\{{.BINARY_NAME}} -Destination $env:USERPROFILE\\AppData\\Local\\HATray\\{{.BINARY_NAME}}'
       # Start the service
       - cmd: pwsh -c 'sc start HATray'
-  
+
   status:
     desc: "Show the status of the service"
     cmds:
@@ -44,7 +44,7 @@ tasks:
     desc: "Tail the log file"
     cmds:
       - cmd: pwsh -c 'Get-Content -Path $env:LOCALAPPDATA\\HATray\\current.log -Tail 10 -Wait'
-  
+
   package:
     desc: "Package the application as a MSI"
     deps: [build]

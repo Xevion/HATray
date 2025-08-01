@@ -2,6 +2,9 @@ name: Build
 
 on:
   push:
+    branches: master
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -16,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: "1.24"
 
       - name: Install Task
         uses: arduino/setup-task@v2
@@ -30,8 +33,7 @@ jobs:
       - name: Get Version
         id: get_version
         run: |
-          VERSION=$(cat VERSION.txt 2>/dev/null | tr -d '\r\n' | xargs)
-          [ -n "$VERSION" ] || { echo "VERSION could not be acquired" && exit 1; }
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'unknown')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "BINARY_NAME=HATray-linux-amd64-$VERSION" >> $GITHUB_OUTPUT
 
@@ -56,7 +58,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: "1.24"
 
       - name: Install Task
         uses: arduino/setup-task@v2
@@ -71,13 +73,16 @@ jobs:
         id: get_version_win
         shell: pwsh
         run: |
-            # Extract the version, assert it's not null/empty
-            $version = Get-Content VERSION.txt -ErrorAction SilentlyContinue
-            if ([string]::IsNullOrWhiteSpace($version)) { throw "VERSION could not be acquired" }
+          # Extract the version using git tags, fallback to 'unknown' if it fails
+          try {
+              $version = git describe --tags --abbrev=0 2>$null
+              if ([string]::IsNullOrWhiteSpace($version)) { $version = 'unknown' }
+          } catch {
+              $version = 'unknown'
+          }
 
-            # Do not append the extension, as we're creating both an .exe and an .msi
-            echo "VERSION=$($version.Trim())" >> $env:GITHUB_OUTPUT  # not used, but who cares
-            echo "BINARY_NAME=HATray-windows-amd64-$($version.Trim())" >> $env:GITHUB_OUTPUT
+          echo "VERSION=$($version.Trim())" >> $env:GITHUB_OUTPUT
+          echo "BINARY_NAME=HATray-windows-amd64-$($version.Trim())" >> $env:GITHUB_OUTPUT
 
       - name: Rename Windows Binary with Version
         shell: pwsh
@@ -89,11 +94,11 @@ jobs:
           name: ${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
           path: bin/${{ steps.get_version_win.outputs.BINARY_NAME }}.exe
           if-no-files-found: error
-        
+
       - name: Set up .NET for WiX
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Install WiX Toolset
         run: dotnet tool install --global wix
