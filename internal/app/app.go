@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	ga "github.com/Xevion/gome-assistant"
+	ga "github.com/Xevion/go-ha"
 )
 
 // App represents the main application layer that is generic and cross-platform

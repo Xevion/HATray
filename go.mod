@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/BurntSushi/toml v1.5.0
-	github.com/Xevion/gome-assistant v0.6.3
+	github.com/Xevion/go-ha v0.7.0
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/getlantern/systray v1.2.2
 	github.com/joho/godotenv v1.5.1
@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/Workiva/go-datastructures v1.1.5 // indirect
 	github.com/getlantern/context v0.0.0-20220418194847-3d5e7a086201 // indirect
 	github.com/getlantern/errors v1.0.4 // indirect
 	github.com/getlantern/golog v0.0.0-20230503153817-8e72de7e0a65 // indirect
@@ -38,4 +39,6 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/mod v0.26.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
+	resty.dev/v3 v3.0.0-beta.3 // indirect
 )
