@@ -132,15 +132,29 @@ func (app *App) Resume() error {
 		URL:         app.config.Server,
 		HAAuthToken: app.config.APIKey,
 	})
-
 	if err != nil {
 		app.logger.Error("failed to create Home Assistant app", "error", err)
 		return err
 	}
 
-	app.ha.Cleanup()
+	app.ha.RegisterEntityListeners(ga.NewEntityListener().EntityIds("binary_sensor.bedroom_door_opening").Call(app.onEntityStateChange).Build())
 
-	app.tray.SetIcon(IconUnknown)
+	go app.ha.Start()
+
+	time.Sleep(2 * time.Second)
+	state, err := app.ha.GetState().Get("binary_sensor.bedroom_door_opening")
+	if err != nil {
+		app.logger.Error("failed to get entity", "error", err)
+		return err
+	}
+
+	app.logger.Info("state", "state", state.State)
+
+	if state.State == "on" {
+		app.tray.SetIcon(IconOpen)
+	} else {
+		app.tray.SetIcon(IconClosed)
+	}
 
 	app.state = StateRunning
 	app.lastStarted = internal.Ptr(time.Now())
@@ -150,6 +164,21 @@ func (app *App) Resume() error {
 		"state", app.state)
 
 	return nil
+}
+
+func (a *App) onEntityStateChange(se *ga.Service, st ga.State, e ga.EntityData) {
+	entity, err := st.Get(e.TriggerEntityId)
+	if err != nil {
+		a.logger.Error("failed to get entity", "error", err)
+		return
+	}
+	a.logger.Info("sensor.test state changed", "entity", e.TriggerEntityId, "state", entity.State)
+
+	if entity.State == "on" {
+		a.tray.SetIcon(IconOpen)
+	} else {
+		a.tray.SetIcon(IconClosed)
+	}
 }
 
 // Reload pauses the application, re-reads configuration files, then resumes
