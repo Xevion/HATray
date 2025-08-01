@@ -60,7 +60,8 @@ func (t *Tray) SetIcon(icon IconReference) error {
 
 func (t *Tray) Start(title string) error {
 	if t.active {
-		return fmt.Errorf("tray is already active")
+		t.logger.Warn("tray is already active")
+		return nil
 	}
 
 	t.logger.Info("attempting to start systray", "title", title)

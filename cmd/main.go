@@ -37,7 +37,7 @@ func main() {
 	}()
 
 	// Create service layer
-	svc := service.NewService(mainLogger)
+	svc := service.NewService(rootLogger)
 
 	mainLogger.Info("service initialized")
 

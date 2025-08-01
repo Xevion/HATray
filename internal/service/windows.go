@@ -15,8 +15,9 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// WindowsTrayService implements the Service interface for Windows as a user application
-type WindowsTrayService struct {
+// windowsService implements the Service interface for Windows
+// Note that this is a user application, not a true SCM service
+type windowsService struct {
 	app          *app.App
 	logger       *slog.Logger
 	restartCount int
@@ -28,7 +29,7 @@ type WindowsTrayService struct {
 
 // NewService creates a new Windows tray service instance
 func NewService(logger *slog.Logger) Service {
-	return &WindowsTrayService{
+	return &windowsService{
 		logger:       logger.With("type", "service", "variant", "windows"),
 		app:          app.NewApp(logger),
 		maxRestarts:  3,
@@ -39,7 +40,7 @@ func NewService(logger *slog.Logger) Service {
 }
 
 // Run implements the Service interface for Windows
-func (svc *WindowsTrayService) Run() error {
+func (svc *windowsService) Run() error {
 	svc.logger.Info("starting Windows tray service")
 
 	// Setup auto-start if not already configured
@@ -79,11 +80,12 @@ func (svc *WindowsTrayService) Run() error {
 }
 
 // runServiceLoop runs the main service loop
-func (svc *WindowsTrayService) runServiceLoop(sigs chan os.Signal) error {
+func (svc *windowsService) runServiceLoop(sigs chan os.Signal) error {
 	// Start the application in background
 	go func() {
 		if err := svc.app.Resume(); err != nil {
 			svc.logger.Error("failed to start app layer", "error", err)
+
 		}
 	}()
 
@@ -128,7 +130,7 @@ func (svc *WindowsTrayService) runServiceLoop(sigs chan os.Signal) error {
 }
 
 // setupAutoStart configures the application to start automatically on login
-func (svc *WindowsTrayService) setupAutoStart() error {
+func (svc *windowsService) setupAutoStart() error {
 	exePath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %v", err)
@@ -152,7 +154,7 @@ func (svc *WindowsTrayService) setupAutoStart() error {
 }
 
 // removeAutoStart removes the auto-start configuration
-func (svc *WindowsTrayService) removeAutoStart() error {
+func (svc *windowsService) removeAutoStart() error {
 	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("failed to open registry key: %v", err)
@@ -168,7 +170,7 @@ func (svc *WindowsTrayService) removeAutoStart() error {
 }
 
 // setupPowerManagement handles sleep/wake events
-func (svc *WindowsTrayService) setupPowerManagement() {
+func (svc *windowsService) setupPowerManagement() {
 	// TODO: Implement Windows power management
 	// - Listen for WM_POWERBROADCAST messages
 	// - Handle system sleep/wake events
@@ -177,7 +179,7 @@ func (svc *WindowsTrayService) setupPowerManagement() {
 }
 
 // isAppHealthy checks if the application is running properly
-func (svc *WindowsTrayService) isAppHealthy() bool {
+func (svc *windowsService) isAppHealthy() bool {
 	// TODO: Implement health checks
 	// - Check if Home Assistant connection is alive
 	// - Check if systray is responsive

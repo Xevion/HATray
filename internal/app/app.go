@@ -60,7 +60,8 @@ func (app *App) Pause() error {
 
 	switch app.state {
 	case StatePaused:
-		return fmt.Errorf("application is already paused")
+		app.logger.Warn("application is already paused")
+		return nil
 	case StateRunning:
 		// valid state to pause from, do nothing
 	default:
@@ -96,13 +97,15 @@ func (app *App) Pause() error {
 }
 
 // Resume connects to the server and initiates background tasks
+// This function does not block permanently, it will return very quickly with an error if anything goes wrong.
 func (app *App) Resume() error {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 
 	switch app.state {
 	case StateRunning:
-		return fmt.Errorf("application is already running")
+		app.logger.Warn("application is already running")
+		return nil
 	case StatePaused:
 		// valid state to resume from, do nothing
 	default:
@@ -128,8 +131,13 @@ func (app *App) Resume() error {
 
 	app.config = DefaultConfig()
 
+	if err := app.config.Validate(); err != nil {
+		app.logger.Error("invalid configuration", "error", err)
+		return err
+	}
+
 	app.ha, err = ga.NewApp(ga.NewAppRequest{
-		URL:         app.config.Server,
+		URL:         *app.config.Server,
 		HAAuthToken: app.config.APIKey,
 	})
 	if err != nil {
