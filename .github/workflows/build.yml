@@ -28,7 +28,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
-        run: sudo apt-get install libgtk-3-dev libayatana-appindicator3-dev
+        run: sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev
 
       - name: Build Linux Binary
         run: task build
@@ -36,9 +36,8 @@ jobs:
       - name: Get Version
         id: get_version
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'unknown')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "BINARY_NAME=HATray-linux-amd64-$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$(task version --silent)" >> $GITHUB_OUTPUT
+          echo "BINARY_NAME=HATray-linux-amd64-$(task version --silent)" >> $GITHUB_OUTPUT
 
       - name: Rename Linux Binary with Version
         run: mv bin/HATray ${{ steps.get_version.outputs.BINARY_NAME }}
@@ -76,16 +75,8 @@ jobs:
         id: get_version_win
         shell: pwsh
         run: |
-          # Extract the version using git tags, fallback to 'unknown' if it fails
-          try {
-              $version = git describe --tags --abbrev=0 2>$null
-              if ([string]::IsNullOrWhiteSpace($version)) { $version = 'unknown' }
-          } catch {
-              $version = 'unknown'
-          }
-
-          echo "VERSION=$($version.Trim())" >> $env:GITHUB_OUTPUT
-          echo "BINARY_NAME=HATray-windows-amd64-$($version.Trim())" >> $env:GITHUB_OUTPUT
+          echo "VERSION=$(task version --silent)" >> $env:GITHUB_OUTPUT
+          echo "BINARY_NAME=HATray-windows-amd64-$(task version --silent)" >> $env:GITHUB_OUTPUT
 
       - name: Rename Windows Binary with Version
         shell: pwsh

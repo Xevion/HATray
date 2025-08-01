@@ -3,7 +3,7 @@ version: "3"
 vars:
   BINARY_NAME: "{{.APP_NAME}}.exe"
   VERSION:
-    sh: powershell -Command "try { agit describe --tags --abbrev=0 } catch { 'unknown' }"
+    sh: powershell -Command "try { git describe --tags --abbrev=0 } catch { 'unknown' }"
   COMMIT:
     sh: git rev-parse --short HEAD
 

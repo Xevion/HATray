@@ -1,8 +1,8 @@
-version: '3'
+version: "3"
 
 vars:
-  APP_NAME: 'HATray'
-  VERSION: '0.0.1'
+  APP_NAME: "HATray"
+  VERSION: "0.0.1"
 
 includes:
   build:
@@ -43,4 +43,9 @@ tasks:
     deps: [deps, fmt, vet, test, build]
     cmds:
       - echo "Development workflow complete"
-      - echo "Run 'task windows:run' to start the application" 
+      - echo "Run 'task windows:run' to start the application"
+
+  version:
+    desc: "Show the version of the application"
+    cmds:
+      - git describe --tags --abbrev=0 2>/dev/null || echo "unknown"
