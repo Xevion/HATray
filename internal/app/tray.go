@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"ha-tray/internal"
+	"log/slog"
 	"time"
 
 	"github.com/getlantern/systray"
@@ -30,7 +31,16 @@ func (i IconReference) Path() string {
 
 type Tray struct {
 	active      bool
-	currentIcon IconReference
+	currentIcon *IconReference
+	logger      *slog.Logger
+}
+
+func NewTray(logger *slog.Logger) *Tray {
+	return &Tray{
+		logger:      logger,
+		currentIcon: nil,
+		active:      false,
+	}
 }
 
 func (t *Tray) SetIcon(icon IconReference) error {
@@ -43,7 +53,7 @@ func (t *Tray) SetIcon(icon IconReference) error {
 		return fmt.Errorf("failed to read icon: %w", err)
 	}
 	systray.SetIcon(iconBytes)
-	t.currentIcon = icon
+	t.currentIcon = &icon
 
 	return nil
 }
@@ -53,11 +63,13 @@ func (t *Tray) Start(title string) error {
 		return fmt.Errorf("tray is already active")
 	}
 
+	t.logger.Info("attempting to start systray", "title", title)
 	readyTimeout := make(chan struct{}, 1)
 	go systray.Run(func() {
 		systray.SetTitle(title)
 		systray.SetTooltip(title)
 
+		t.logger.Info("systray started")
 		readyTimeout <- struct{}{}
 		close(readyTimeout)
 	}, func() {
@@ -66,11 +78,12 @@ func (t *Tray) Start(title string) error {
 
 	select {
 	case <-readyTimeout:
-		fmt.Println("tray started")
+		t.logger.Info("systray start confirmed")
 		t.active = true
 		return nil
 	case <-time.After(5 * time.Second):
 		close(readyTimeout)
+		t.logger.Error("systray start timed out")
 		return fmt.Errorf("tray did not start in time")
 	}
 }

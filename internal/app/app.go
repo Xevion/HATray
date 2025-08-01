@@ -48,7 +48,7 @@ func NewApp(logger *slog.Logger) *App {
 		state:       StatePaused,
 		config:      nil,
 		lastStarted: nil,
-		tray:        &Tray{},
+		tray:        NewTray(logger.With("type", "tray")),
 		ha:          nil,
 	}
 }
@@ -72,17 +72,14 @@ func (app *App) Pause() error {
 		"previous_state", app.state,
 		"new_state", StatePaused)
 
-	// TODO: Implement actual pause logic
 	// - Disconnect from Home Assistant WebSocket
-	// - Stop background tasks
-	// - Pause sensor monitoring
-	// - Stop tray icon event loop
-
 	err := app.ha.Close()
 	if err != nil {
 		app.logger.Error("failed to close home assistant connection", "error", err)
 		return err
 	}
+
+	// - Stop tray icon event loop
 	err = app.tray.Stop()
 	if err != nil {
 		app.logger.Error("failed to stop tray", "error", err)
